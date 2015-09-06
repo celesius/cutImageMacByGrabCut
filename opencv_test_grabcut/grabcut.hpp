@@ -22,6 +22,7 @@ public:
     void    undo();
     void    deletePathMask();
     void    deleteAllMask();
+    
 private:
     void	show();
     Mat		getFG();
@@ -33,6 +34,11 @@ private:
     bool    diffRect(Rect r1, Rect r2);
     void    showBit( cv::Mat gray, cv::Mat & out );
     Mat     mergeMat( Mat mergeMat, Mat mergeToMat, Rect mergeRect );
+    //void    processCut(const Mat mergeToMat ,const Mat msk, Mat & resultMaskMat, Mat &resultColorMat);
+    void    grabcutByMergeToMatAndMskMat(const Mat mergeToMat ,const Mat msk, Mat & resultMaskMat, Mat &resultColorMat);
+    Mat		getBinMaskByMask(cv::Mat mask);
+    void    processGrabCut(std::vector<cv::Point> maskPoint, int lineWidth, Mat &resultMaskMat, Mat &resultColorMat);
+    
     //creat end
     Mat _gcut;
     int _mode;
@@ -53,6 +59,7 @@ private:
 private:
     Mat _gcutBuffer;
     Mat _cutResultMask;
+    Mat _maskStore;
     vector<Mat> matStoreArray;
 };
 

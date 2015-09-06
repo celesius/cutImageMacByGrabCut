@@ -19,6 +19,7 @@ void GrabCut::run(Mat img, Mat &msk)
     cout << "run grabcut" << endl;
     _src	= img;
     _cutResultMask = Mat(img.size(), CV_8UC1, Scalar(0));
+    _maskStore = Mat(img.size(), CV_8UC1, Scalar(0));
     _mask	= Mat::ones(_src.size(),CV_8UC1)*GC_PR_BGD;
     _bin	= Mat::zeros(_src.size(),CV_8UC1);
     cout << "GC_BGD " << GC_BGD <<endl;				// 0
@@ -91,14 +92,13 @@ void GrabCut::show()
     scribbled_src.copyTo(_dsp(roi));
     
     Mat msk = getBinMask();
-    
     cv::Mat send = msk.clone();
     cv::Mat sendFilter;
     cv::Mat resultMat = filterMaskAndMergeMat(send, _cutResultMask, _gcutBuffer);
     Mat fg = getFGByMask(resultMat);//getFG();
     roi = Rect(_src.cols,_src.rows,_src.cols,_src.rows);
     fg.copyTo(_dsp(roi));
-    imshow("fg", fg);
+  //  imshow("fg", fg);
     
    // imshow("mergeResultMat", resultMat);
     _cutResultMask = resultMat;
@@ -413,6 +413,11 @@ void GrabCut::events( int e, int x, int y, int flags)
                 Mat showFgd;
                 showBit(_gcut, showGcut);
                 cv::grabCut(_src,_gcut,Rect(), _bgd, _fgd, 1, cv::GC_INIT_WITH_MASK);
+                cv::Mat resultMaskMat;
+                cv::Mat resultColorMat;
+                grabcutByMergeToMatAndMskMat(_maskStore ,_gcut, resultMaskMat, resultColorMat);
+                _maskStore = resultMaskMat;
+                
                 /**
                  *  应该按照指定的maskRect进行计算，但结果还是全局计算
                  */
@@ -438,6 +443,53 @@ void GrabCut::events( int e, int x, int y, int flags)
             break;
     };
     //cout << "eventout" << endl;
+}
+
+void GrabCut::grabcutByMergeToMatAndMskMat(const Mat mergeToMat ,const Mat msk, Mat & resultMaskMat, Mat &resultColorMat)
+{
+    cv::Mat srcImage = _src;
+    cv::Mat aGcut = msk.clone();
+    cv::Mat mskClone = msk.clone();
+    cv::Mat aBgd;
+    cv::Mat aFgd;
+    cv::grabCut(srcImage, aGcut,Rect(), aBgd, aFgd, 1, cv::GC_INIT_WITH_MASK);
+    cv::Mat bitMask = getBinMaskByMask(aGcut);
+    cv::Mat send = bitMask.clone();
+    cv::Mat sendFilter;
+    cv::Mat resultMat = filterMaskAndMergeMat(send, mergeToMat, mskClone);
+    resultMaskMat = resultMat.clone();
+    Mat fg = getFGByMask(resultMat);//getFG();
+    imshow("allfg", fg);
+}
+Mat GrabCut::getBinMaskByMask(cv::Mat mask)
+{
+    Mat binmask(mask.size(), CV_8U);
+    binmask = mask& GC_FGD;
+    binmask = binmask * 255;
+    Mat tmp;
+    binmask.copyTo(tmp);
+    vector<vector<Point> > co;
+    vector<Vec4i> hi;
+    binmask *= 0;
+    findContours(tmp,co,hi,RETR_EXTERNAL,CHAIN_APPROX_NONE);
+    for(int i=0;i<co.size();i++){
+        if(contourArea(Mat(co[i])) < 50) continue;
+        drawContours(binmask, co,i, CV_RGB(255,255,255), CV_FILLED, CV_AA);
+    }
+    binmask.copyTo(_bin);
+    return binmask;
+}
+/**
+ *  封装grabCut算法
+ *
+ *  @param maskPoint
+ *  @param lineWidth
+ *  @param resultMaskMat
+ *  @param resultColorMat 
+ */
+void GrabCut::processGrabCut(std::vector<cv::Point> maskPoint, int lineWidth, Mat &resultMaskMat, Mat &resultColorMat)
+{
+
 }
 
 static void wevents( int e, int x, int y, int flags, void* ptr )
